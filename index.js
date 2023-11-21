@@ -1,129 +1,48 @@
 const express = require("express");
 const app = express();
-var morgan = require("morgan");
+const cors = require("cors");
 
+const requestLogger = (request, response, next) => {
+  console.log("Method:", request.method);
+  console.log("Path:  ", request.path);
+  console.log("Body:  ", request.body);
+  console.log("---");
+  next();
+};
+
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: "unknown endpoint" });
+};
+
+app.use(cors());
 app.use(express.json());
+app.use(requestLogger);
+app.use(express.static("dist"));
 
-morgan.token("body", (req, res) => {
-  return JSON.stringify(req.body);
-});
-const logger = morgan(function (tokens, req, res) {
-  return [
-    tokens.method(req, res),
-    tokens.url(req, res),
-    tokens.status(req, res),
-    tokens.res(req, res, "content-length"),
-    "-",
-    tokens["response-time"](req, res),
-    "ms",
-    tokens.body(req, res),
-  ].join(" ");
-});
-
-app.use(logger);
-
-let persons = [
+let notes = [
   {
     id: 1,
-    name: "Arto Hellas",
-    number: "040-123456",
+    content: "HTML is easy",
+    important: true,
   },
   {
     id: 2,
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
+    content: "Browser can execute only JavaScript",
+    important: false,
   },
   {
     id: 3,
-    name: "Dan Abramov",
-    number: "12-43-234345",
-  },
-  {
-    id: 4,
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
+    content: "GET and POST are the most important methods of HTTP protocol",
+    important: true,
   },
 ];
 
-app.get("/api/persons", (request, response) => {
-  response.json(persons);
+app.get("/", (req, res) => {
+  res.send("<h1>Hello World!</h1>");
 });
 
-app.get("/api/persons/:id", (request, response) => {
-  const id = +request.params.id;
-  const person = persons.find((entry) => entry.id === id);
-  console.log(id);
-  console.log(person);
-  if (person) {
-    response.json(person);
-  } else {
-    response.statusMessage = "Person doesn't exist";
-    response.status(404).end();
-  }
-});
-
-app.delete("/api/persons/:id", (request, response) => {
-  const id = +request.params.id;
-  persons = persons.filter((entry) => entry.id !== id);
-  response.status(204).end();
-});
-
-app.post("/api/persons", (request, response) => {
-  const body = request.body;
-  if (!body.name) {
-    return response.status(400).json({
-      error: "name missing",
-    });
-  }
-
-  if (!body.number) {
-    return response.status(400).json({
-      error: "number missing",
-    });
-  }
-
-  const personWithNameAlreadyExists = persons.find(
-    (entry) => entry.name === body.name
-  );
-  if (personWithNameAlreadyExists) {
-    return response.status(400).json({
-      error: "name must be unique",
-    });
-  }
-
-  const person = {
-    name: body.name,
-    number: body.number,
-    id: Math.floor(Math.random() * 100000),
-  };
-  persons = persons.concat(person);
-  response.json(person);
-});
-
-app.get("/info", (request, response) => {
-  const html = `
-  <p>Phonebook has info for ${persons.length} people</p>
-  <p>${new Date()}</p>
-  `;
-  response.send(html);
-});
-
-app.get("/api/notes/:id", (request, response) => {
-  const id = Number(request.params.id);
-  const note = notes.find((note) => note.id === id);
-  if (note) {
-    response.json(note);
-  } else {
-    response.statusMessage = "Note doesn't exist";
-    response.status(404).end();
-  }
-});
-
-app.delete("/api/notes/:id", (request, response) => {
-  const id = Number(request.params.id);
-  notes = notes.filter((note) => note.id !== id);
-
-  response.status(204).end();
+app.get("/api/notes", (req, res) => {
+  res.json(notes);
 });
 
 const generateId = () => {
@@ -143,6 +62,7 @@ app.post("/api/notes", (request, response) => {
   const note = {
     content: body.content,
     important: body.important || false,
+    date: new Date(),
     id: generateId(),
   };
 
@@ -151,9 +71,25 @@ app.post("/api/notes", (request, response) => {
   response.json(note);
 });
 
-const unknownEndpoint = (request, response) => {
-  response.status(404).send({ error: "unknown endpoint" });
-};
+app.get("/api/notes/:id", (request, response) => {
+  const id = Number(request.params.id);
+  const note = notes.find((note) => note.id === id);
+
+  if (note) {
+    response.json(note);
+  } else {
+    response.status(404).end();
+  }
+
+  response.json(note);
+});
+
+app.delete("/api/notes/:id", (request, response) => {
+  const id = Number(request.params.id);
+  notes = notes.filter((note) => note.id !== id);
+
+  response.status(204).end();
+});
 
 app.use(unknownEndpoint);
 
